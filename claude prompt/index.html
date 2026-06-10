@@ -321,27 +321,48 @@ function finish(html, src){
   if(src!=="demo://sample") setStatus("Ready. Download opens your browser’s “Save as PDF”.","ok");
 }
 
-/* keep the WHOLE decision; take identity from the page's own metadata */
+/* Keep the WHOLE decision exactly as published; drop only the website around it.
+   LawPhil lays the page out as one table: the decision is its single largest
+   cell, while the logo, date, purple menu and search box are smaller cells/nodes. */
 function cleanCase(html, src){
   const dom=new DOMParser().parseFromString(html,"text/html");
 
   const grno = clean(dom.querySelector("title")?.textContent) || guessGR(src);
-  let caption = clean(dom.querySelector('meta[name="description"]')?.getAttribute("content")) || "";
+  let caption = clean(dom.querySelector('meta[name="description"]')?.getAttribute("content")
+                   || dom.querySelector('meta[name="subject"]')?.getAttribute("content") || "");
+  caption = caption.replace(/^\s*philippine jurisprudence\s*[-\u2013]\s*/i,"").trim();
 
-  dom.querySelectorAll("script,style,noscript,link,meta,iframe,form,button,input,select,svg,img").forEach(n=>n.remove());
-  const body=dom.body;
+  // remove executable / styling / search / banner chrome up front
+  dom.querySelectorAll("script,style,noscript,link,meta,iframe,ins,svg,form,input,button,select").forEach(n=>n.remove());
+  dom.querySelectorAll('[id*="gcse" i],[id*="gsc" i],[class*="gsc" i],[class*="gss" i],[class*="gstl" i],[id="cookie_box"],.menuBar').forEach(n=>n.remove());
 
-  // drop the small "related opinions" switcher (it uses ♦ bullets / links to sibling opinion files)
-  [...body.querySelectorAll("p,div,table,center,span")].forEach(el=>{
-    const t=el.textContent||"";
-    if(t.includes("♦") && t.length<600) el.remove();
+  // the decision is the largest table cell; fall back to <body> if a page isn't table-laid-out
+  let root=dom.body, best=0;
+  dom.querySelectorAll("td").forEach(td=>{ const L=(td.textContent||"").trim().length; if(L>best){best=L; root=td;} });
+  if(best<400) root=dom.body;
+
+  // drop the "related opinions" switcher (♦ bullets), images, and navigation links
+  [...root.querySelectorAll("p,div,table,center,span")].forEach(el=>{
+    const t=el.textContent||""; if(t.includes("\u2666") && t.length<600) el.remove();
+  });
+  root.querySelectorAll("img").forEach(n=>n.remove());
+  root.querySelectorAll("a").forEach(a=>{
+    const href=a.getAttribute("href")||"";
+    if(a.querySelector("img")||/^javascript:/i.test(href)||/#top/i.test(href)||!href) a.remove();
+    else a.replaceWith(...a.childNodes);   // footnote/reference links -> plain text
   });
 
-  // turn links into plain text; strip presentational noise but KEEP alignment
-  body.querySelectorAll("a").forEach(a=>a.replaceWith(...a.childNodes));
-  body.querySelectorAll("*").forEach(el=>["bgcolor","color","style","face","size","width","height","class","id","border","cellpadding","cellspacing","background"].forEach(at=>el.removeAttribute(at)));
+  // strip presentational noise but KEEP text alignment (justify / center)
+  const drop=["bgcolor","color","style","face","size","width","height","class","id","border",
+              "cellpadding","cellspacing","background","hspace","vspace","valign","rowspan","colspan"];
+  root.querySelectorAll("*").forEach(el=>drop.forEach(at=>el.removeAttribute(at)));
 
-  return { grno, caption, src, bodyHTML: body.innerHTML };
+  // remove containers emptied by the cleanup
+  root.querySelectorAll("center,div,span,font,p,td,tr,table,tbody").forEach(el=>{
+    if(!el.textContent.trim() && !el.querySelector("hr")) el.remove();
+  });
+
+  return { grno, caption, src, bodyHTML: root.innerHTML };
 }
 function clean(s){ return (s||"").replace(/\s+/g," ").trim(); }
 function guessGR(u){ const m=(u||"").match(/gr[_l-]*([\d-]+)/i); return m?("G.R. No. "+m[1].replace(/^l-?/i,"L-")):"G.R. No. —"; }

@@ -1,0 +1,28 @@
+# Simple - just the number!
+python download.py 238659
+
+# Output: G.R. No. 238659.pdf
+
+# Still works with full format
+python download.py "G.R. No. 238659"
+
+# Custom output name
+python download.py 238659 -o my_case.pdf
+
+# Another example
+python download.py 227868
+```
+
+## What You'll See:
+```
+Mode: Search and download first result
+Formatted as: G.R. No. 238659
+✓ Browser started successfully
+Searching for: G.R. No. 238659
+✓ Found case: https://lawphil.net/judjuris/juri2019/jun2019/gr_238659_2019.html
+Opening: https://lawphil.net/judjuris/juri2019/jun2019/gr_238659_2019.html
+✓ Closed cookie popup
+Saving as: G.R. No. 238659.pdf
+✓ Successfully saved: G.R. No. 238659.pdf
+
+✓ Done!

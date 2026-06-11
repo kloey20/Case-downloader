@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LawPhil Case Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">LawPhil Downloader</h1>
+
+        <div id="statusMessage" class="hidden mb-4 p-4 rounded border whitespace-pre-wrap break-all text-sm font-medium"></div>
+
+        <form action="/process" method="POST" id="downloadForm">
+            <div class="mb-4">
+                <label for="input_text" class="block text-sm font-medium text-gray-700 mb-1">Case Number or Direct URL</label>
+                <input type="text" id="input_text" name="input_text" required placeholder="e.g., 238659 or https://..." 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="mb-4 flex items-center">
+                <input type="checkbox" id="is_url" name="is_url" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="is_url" class="ml-2 block text-sm text-gray-700">
+                    This is a direct LawPhil URL (Check if not searching)
+                </label>
+            </div>
+
+            <div class="mb-6">
+                <label for="output_filename" class="block text-sm font-medium text-gray-700 mb-1">Custom Filename (Optional)</label>
+                <input type="text" id="output_filename" name="output_filename" placeholder="e.g., my_case.pdf" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <button type="submit" id="submitBtn" 
+                    class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors">
+                Download PDF
+            </button>
+        </form>
+
+        <div id="loading" class="hidden mt-4 text-center">
+            <p class="text-gray-600 flex items-center justify-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Fetching case... This may take a few seconds.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('downloadForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+            
+            const btn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const statusMsg = document.getElementById('statusMessage');
+            
+            // Set Loading UI
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            loading.classList.remove('hidden');
+            statusMsg.classList.add('hidden');
+            
+            // Clear previous color classes
+            statusMsg.classList.remove('bg-red-100', 'text-red-700', 'border-red-200', 'bg-green-100', 'text-green-700', 'border-green-200');
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                statusMsg.classList.remove('hidden');
+                
+                if (data.success) {
+                    statusMsg.classList.add('bg-green-100', 'text-green-700', 'border-green-200');
+                    statusMsg.innerText = data.message;
+                } else {
+                    statusMsg.classList.add('bg-red-100', 'text-red-700', 'border-red-200');
+                    statusMsg.innerText = data.message;
+                }
+            } catch (error) {
+                console.error(error);
+                statusMsg.classList.remove('hidden');
+                statusMsg.classList.add('bg-red-100', 'text-red-700', 'border-red-200');
+                statusMsg.innerText = "An error occurred while connecting to the downloader.";
+            } finally {
+                // Reset Loading UI
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                loading.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

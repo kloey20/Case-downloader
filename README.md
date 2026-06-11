@@ -14,13 +14,13 @@ Before running this app, ensure you have the following installed on your compute
 ### 1. Open the file link above:
 ![link](/images/app%20link.png)
 
-### 2. Download the file by clicking the download:
+### 2. Download the file by clicking the download button:
 ![dist folder](/images/dist%20folder.png)
 
 
 ### 3. Save the case-downloader.exe where you want the cases to be saved.
 
-### 4. Run the Case-Downloader.exe
+### 4. Run the application
 
 ### 5. Type the G.R. number you want to download, then press 'Download PDF'
 ![input](/images/input.png)

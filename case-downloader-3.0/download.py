@@ -1,302 +1,153 @@
 #!/usr/bin/env python3
 """
-LawPhil Case Downloader - Raw Number Search Version
-A tool to download Philippine Supreme Court cases from lawphil.net as PDF files.
-
-Usage:
-    python download.py "112453"
+LawPhil Case Downloader - Auto-Queue & Aggressive Cookie Blocking
 """
 
 import sys
 import re
 import os
-import argparse
-from datetime import datetime
 import time
-import base64
 
 try:
     from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options as ChromeOptions
-    from selenium.webdriver.edge.options import Options as EdgeOptions
+    from selenium.webdriver.edge.options import Options
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.common.keys import Keys
 except ImportError:
     print("Error: Selenium not installed.")
-    print("Please run: pip install selenium")
     sys.exit(1)
 
 
 class LawPhilDownloader:
-    """Downloads cases from lawphil.net and saves them as PDF."""
-    
     SEARCH_URL = "https://www.google.com/search?q=site:lawphil.net+"
     
     def __init__(self, headless=True):
-        """Initialize the downloader with browser options."""
         self.headless = headless
         self.driver = None
         
     def setup_driver(self):
-        """Attempts to launch Google Chrome first, falls back to Microsoft Edge."""
-        common_args = [
-            '--no-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-blink-features=AutomationControlled'
-        ]
+        edge_options = Options()
         if self.headless:
-            common_args.append('--headless=new')
-
-        # --- 1. TRY GOOGLE CHROME FIRST ---
-        try:
-            chrome_options = ChromeOptions()
-            for arg in common_args:
-                chrome_options.add_argument(arg)
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            chrome_options.add_experimental_option('useAutomationExtension', False)
-            chrome_options.add_experimental_option("prefs", {
-                "profile.default_content_setting_values.notifications": 2,
-                "profile.cookie_controls_mode": 0
-            })
-            
-            self.driver = webdriver.Chrome(options=chrome_options)
-            print("✓ Google Chrome started successfully")
-            return
-        except Exception:
-            # If Chrome fails or isn't installed, silently pass to try Edge
-            pass
-
-        # --- 2. FALLBACK TO MICROSOFT EDGE ---
-        try:
-            edge_options = EdgeOptions()
-            for arg in common_args:
-                edge_options.add_argument(arg)
-            edge_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            edge_options.add_experimental_option('useAutomationExtension', False)
-            edge_options.add_experimental_option("prefs", {
-                "profile.default_content_setting_values.notifications": 2,
-                "profile.cookie_controls_mode": 0
-            })
-            
-            self.driver = webdriver.Edge(options=edge_options)
-            print("✓ Microsoft Edge started successfully")
-            return
-        except Exception as e:
-            print(f"Error: Could not start either Google Chrome or Edge browser: {e}")
-            print("\nMake sure a compatible Chromium browser is installed and updated.")
-            raise
+            edge_options.add_argument('--headless=new')
+        edge_options.add_argument('--no-sandbox')
+        edge_options.add_argument('--disable-dev-shm-usage')
+        edge_options.add_argument('--disable-gpu')
+        edge_options.add_argument('--disable-blink-features=AutomationControlled')
+        edge_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        edge_options.add_experimental_option('useAutomationExtension', False)
+        
+        prefs = {"profile.default_content_setting_values.notifications": 2, "profile.cookie_controls_mode": 0}
+        edge_options.add_experimental_option("prefs", prefs)
+        self.driver = webdriver.Edge(options=edge_options)
     
     def format_case_number(self, case_input):
-        """REVISED: Extracts ONLY the raw numbers to bypass Google search blocks."""
         case_input = case_input.strip()
-        
-        # Extract only the numbers from whatever the user types
-        match = re.search(r'(\d+)', case_input)
-        if match:
-            number_only = match.group(1)
-            print(f"Extracted raw case number for search query: {number_only}")
-            # Returns number_only for the search, and number_only for the filename generator
-            return number_only, number_only
+        if case_input.isdigit():
+            return f"G.R. No. {case_input}", case_input
         else:
-            # Fallback if someone inputs something without any digits
-            return case_input, case_input
-    
-    def search_and_get_first_link(self, search_term, case_number_only=None):
-        """Search on Google with site:lawphil.net using the raw digits."""
-        search_query = search_term.replace(" ", "+")
-        search_url = f"{self.SEARCH_URL}{search_query}"
-        
-        print(f"Searching for: {search_term}")
-        print(f"Search URL: {search_url}")
-        
-        self.case_number_only = case_number_only
-        self.driver.get(search_url)
-        time.sleep(3)
-        
+            match = re.search(r'(\d+)', case_input)
+            number_only = match.group(1) if match else case_input
+            return case_input, number_only
+            
+    def destroy_cookie_banners(self):
+        """Aggressively removes cookie popups using Javascript and handles alerts."""
+        # 1. Handle native browser alerts (if any)
         try:
+            WebDriverWait(self.driver, 1).until(EC.alert_is_present())
+            self.driver.switch_to.alert.accept()
+        except:
+            pass
+
+        # 2. Inject Javascript to forcefully click OK and hide sticky cookie banners
+        try:
+            js_nuke_cookies = """
+            // Try clicking anything that looks like an OK/Accept button
+            var btns = document.querySelectorAll('button, a, div');
+            var keywords = ['ok', 'accept', 'agree', 'got it', 'close'];
+            for (var i = 0; i < btns.length; i++) {
+                var txt = btns[i].innerText ? btns[i].innerText.toLowerCase().trim() : '';
+                if (keywords.includes(txt)) {
+                    btns[i].click();
+                }
+            }
+            
+            // Forcefully hide any fixed/sticky elements at the bottom or top of the screen
+            var elements = document.querySelectorAll('*');
+            for (var i = 0; i < elements.length; i++) {
+                var style = window.getComputedStyle(elements[i]);
+                if (style.position === 'fixed' || style.position === 'sticky') {
+                    if (elements[i].innerText && elements[i].innerText.toLowerCase().includes('cookie')) {
+                        elements[i].style.display = 'none';
+                        elements[i].style.opacity = '0';
+                    }
+                }
+            }
+            """
+            self.driver.execute_script(js_nuke_cookies)
+            time.sleep(1) # Wait a second for animations to clear
+        except Exception:
+            pass
+
+    def process_and_download(self, search_input, output_dir=None):
+        """Searches, navigates, cleans the page, and auto-saves the PDF in one go."""
+        try:
+            self.setup_driver()
+            
+            # Phase 1: Format and Search
+            search_term, case_number_only = self.format_case_number(search_input)
+            search_query = search_term.replace(" ", "+")
+            self.driver.get(f"{self.SEARCH_URL}{search_query}")
+            time.sleep(2) 
+            
+            # Phase 2: Find Link
+            case_url = None
             links = self.driver.find_elements(By.CSS_SELECTOR, "a[href]")
             for link in links:
                 href = link.get_attribute('href')
                 if href and 'lawphil.net' in href and 'judjuris' in href and '.html' in href:
                     if not href.startswith('https://www.google.com'):
-                        print(f"✓ Found case: {href}")
-                        return href
+                        case_url = href
+                        break
             
-            print("Hex: No case found in search results.")
-            return None
-            
-        except Exception as e:
-            print(f"Error searching: {e}")
-            return None
-    
-    def close_popups_and_accept_cookies(self):
-        """Try to close cookie popups and any overlays."""
-        try:
-            time.sleep(1)
-            cookie_selectors = [
-                "button[id*='accept']", "button[class*='accept']", "a[id*='accept']", "a[class*='accept']",
-                "button[id*='cookie']", "button[class*='cookie']", "button[id*='consent']", "button[class*='consent']",
-                "[class*='cookie-accept']", "[id*='cookie-accept']",
-            ]
-            
-            for selector in cookie_selectors:
-                try:
-                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                    for element in elements:
-                        if element.is_displayed():
-                            element.click()
-                            print("✓ Closed cookie popup")
-                            time.sleep(0.5)
-                            break
-                except:
-                    continue
-            
-            overlay_selectors = [
-                "[class*='modal']", "[class*='overlay']", "[class*='popup']",
-                "[id*='modal']", "[id*='overlay']", "[id*='popup']",
-            ]
-            
-            for selector in overlay_selectors:
-                try:
-                    overlays = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                    for overlay in overlays:
-                        if overlay.is_displayed():
-                            close_buttons = overlay.find_elements(By.CSS_SELECTOR, 
-                                "button[class*='close'], a[class*='close'], [aria-label*='close'], [title*='close']")
-                            for btn in close_buttons:
-                                try:
-                                    btn.click()
-                                    print("✓ Closed popup overlay")
-                                    time.sleep(0.5)
-                                    break
-                                except:
-                                    continue
-                except:
-                    continue
-                    
-        except Exception:
-            pass
-    
-    def save_page_as_pdf(self, url, output_filename=None):
-        """Open a URL and save the page as PDF directly in the application folder."""
-        if not url:
-            print("No URL provided")
-            return False
-        
-        print(f"Opening: {url}")
-        self.driver.get(url)
-        time.sleep(2)
-        
-        self.close_popups_and_accept_cookies()
-        
-        try:
-            if not output_filename:
-                # Keep the beautiful "G.R. No. 112453.pdf" naming convention for the actual file output
-                if hasattr(self, 'case_number_only') and self.case_number_only:
-                    output_filename = f"G.R. No. {self.case_number_only}.pdf"
-                else:
-                    page_title = self.driver.title
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    output_filename = f"{page_title[:50].replace(' ', '_')}_{timestamp}.pdf"
-                    output_filename = re.sub(r'[<>:"/\\|?*]', '', output_filename)
-            
-            if not output_filename.endswith('.pdf'):
-                output_filename += '.pdf'
-            
-            # Save path resolution targeting the local directory where the app runs
-            if getattr(sys, 'frozen', False):
-                app_dir = os.path.dirname(sys.executable)
-            else:
-                app_dir = os.path.dirname(os.path.abspath(__file__))
+            if not case_url:
+                return None # Case not found
                 
-            absolute_output_path = os.path.join(app_dir, output_filename)
-            print(f"Saving explicitly to: {absolute_output_path}")
+            # Phase 3: Navigate and Clean Page
+            self.driver.get(case_url)
+            time.sleep(2) 
+            self.destroy_cookie_banners()
             
+            # Phase 4: Save PDF
+            output_filename = f"G.R. No. {case_number_only}.pdf"
+            
+            if output_dir and os.path.isdir(output_dir):
+                base_dir = output_dir
+            else:
+                if getattr(sys, 'frozen', False):
+                    base_dir = os.path.dirname(sys.executable)
+                else:
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    
+            abs_path = os.path.join(base_dir, output_filename)
+            
+            import base64
             pdf_settings = {
-                "landscape": False,
-                "displayHeaderFooter": False,
-                "printBackground": True,
-                "preferCSSPageSize": False,
-                "paperWidth": 8.27,  # A4 width in inches
-                "paperHeight": 11.69,  # A4 height in inches
-                "marginTop": 0.4,
-                "marginBottom": 0.4,
-                "marginLeft": 0.4,
-                "marginRight": 0.4,
+                "landscape": False, "displayHeaderFooter": False, "printBackground": True,
+                "preferCSSPageSize": False, "paperWidth": 8.27, "paperHeight": 11.69,
+                "marginTop": 0.4, "marginBottom": 0.4, "marginLeft": 0.4, "marginRight": 0.4,
             }
             
             result = self.driver.execute_cdp_cmd("Page.printToPDF", pdf_settings)
             
-            with open(absolute_output_path, 'wb') as f:
+            with open(abs_path, 'wb') as f:
                 f.write(base64.b64decode(result['data']))
-            
-            print(f"✓ Successfully saved: {absolute_output_path}")
-            return True
-            
-        except Exception as e:
-            print(f"✗ Error saving PDF: {e}")
-            return False
-    
-    def download_case(self, search_input, output_filename=None):
-        """Main method: search for case and download first result."""
-        try:
-            self.setup_driver()
-            search_term, case_number_only = self.format_case_number(search_input)
-            case_url = self.search_and_get_first_link(search_term, case_number_only)
-            
-            if not case_url:
-                print("Could not find any case. Try a different search term.")
-                return False
-            
-            return self.save_page_as_pdf(case_url, output_filename)
                 
+            return abs_path
+            
         except Exception as e:
-            print(f"Error: {e}")
-            return False
+            print(f"✗ Error: {e}")
+            return None
         finally:
-            if self.driver:
+            if self.driver: 
                 self.driver.quit()
-    
-    def download_from_url(self, url, output_filename=None):
-        """Download a case directly from a URL."""
-        try:
-            self.setup_driver()
-            return self.save_page_as_pdf(url, output_filename)
-        except Exception as e:
-            print(f"Error: {e}")
-            return False
-        finally:
-            if self.driver:
-                self.driver.quit()
-
-
-def main():
-    """Main entry point for command-line usage."""
-    parser = argparse.ArgumentParser(
-        description='Download Philippine Supreme Court cases from lawphil.net as PDF',
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('search_term', nargs='?', help='Case number digits')
-    group.add_argument('--url', help='Direct URL to a case on lawphil.net')
-    
-    parser.add_argument('-o', '--output', help='Output PDF filename')
-    parser.add_argument('--show-browser', action='store_true', help='Show browser window')
-    
-    args = parser.parse_args()
-    downloader = LawPhilDownloader(headless=not args.show_browser)
-    
-    if args.url:
-        success = downloader.download_from_url(args.url, args.output)
-    else:
-        success = downloader.download_case(args.search_term, args.output)
-    
-    sys.exit(0 if success else 1)
-
-
-if __name__ == '__main__':
-    main()

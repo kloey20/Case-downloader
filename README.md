@@ -9,6 +9,7 @@ Before running this app, ensure you have the following installed on your compute
 1. **Microsoft Edge**: The app uses Edge in the background to perfectly format and save the PDFs.
 
 ## 📋 How to use install
-1. Open [github folder downloader](https://download-directory.github.io) and download this link: https://github.com/kloey20/Case-downloader/tree/main/case-downloader
-2. Extract and save the folder whenever you need, the pdf will be saved in the same folder - case-downloader
-2. Run the start_app
+1. Open this link in a new tab: https://download-directory.github.io.
+2. Copy paste and download this link: https://github.com/kloey20/Case-downloader/tree/main/case-downloader
+3. Extract and save the folder whereever you need, the pdf will be saved in the same folder - case-downloader
+4. Run the start_app

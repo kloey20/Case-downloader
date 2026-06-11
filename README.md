@@ -8,8 +8,13 @@ No complex command-line interfaces—just a clean window where you can type a ca
 Before running this app, ensure you have the following installed on your computer:
 1. **Microsoft Edge**: The app uses Edge in the background to perfectly format and save the PDFs.
 
+>***Some cases cannot be downloaded, try again if needed but if it fails then manually download***
+
 ## 📋 How to install
-1. Open this link in a new tab: https://download-directory.github.io.
-2. Copy paste and download this link: https://github.com/kloey20/Case-downloader/tree/main/case-downloader
-3. Extract and save the folder whereever you need, the pdf will be saved in the same folder - case-downloader
-4. Run the start_app
+1. Open the file like here
+2. Download the file by clicking the download:
+![dist folder](/images/dist%20folder.png)
+
+
+3. save the case-downloader.exe where you want the cases to be saved
+4. Run the Case-Downloader.exe

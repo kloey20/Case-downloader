@@ -9,6 +9,5 @@ Before running this app, ensure you have the following installed on your compute
 1. **Microsoft Edge**: The app uses Edge in the background to perfectly format and save the PDFs.
 
 ## 📋 How to use install
-1. Open [case-downloader 2.0](https://github.com/kloey20/Case-downloader/tree/case-downloader-app/case-downloader-2.0) and download the LawPhil-Downloader.exe
->currently not working, needs updating
-2. Run the .exe file
+1. Open [github folder downloader](https://download-directory.github.io) and download this link: https://github.com/kloey20/Case-downloader/tree/case-downloader-app/case-downloader
+2. Run the start_app

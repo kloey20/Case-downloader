@@ -11,10 +11,16 @@ Before running this app, ensure you have the following installed on your compute
 >***Some cases cannot be downloaded, try again if needed but if it fails then manually download***
 
 ## 📋 How to install
-1. Open the file like here
-2. Download the file by clicking the download:
+### 1. Open the file link above:
+![link](/images/app%20link.png)
+
+### 2. Download the file by clicking the download:
 ![dist folder](/images/dist%20folder.png)
 
 
-3. save the case-downloader.exe where you want the cases to be saved
-4. Run the Case-Downloader.exe
+### 3. Save the case-downloader.exe where you want the cases to be saved.
+
+### 4. Run the Case-Downloader.exe
+
+### 5. Type the G.R. number you want to download, then press 'Download PDF'
+![input](/images/input.png)

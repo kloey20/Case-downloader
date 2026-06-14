@@ -18,9 +18,15 @@ Before running this app, ensure you have the following installed on your compute
 ![dist folder](/images/dist%20folder.png)
 
 
-### 3. Save the case-downloader.exe where you want the cases to be saved.
+### 3. Save the LawPhil-Downloader.exe where you want the cases to be saved.
 
 ### 4. Run the application
 
 ### 5. Type the G.R. number you want to download, then press 'Download PDF'
 ![input](/images/input.png)
+
+## Alternative install
+>### LawPhil-Downloader.exe fails to run, you can download the case-downloader-4.2
+### 1. Open this link in a new tab: https://download-directory.github.io
+### 2. Copy this link and download it using the website: https://github.com/kloey20/Case-downloader/tree/main/case-downloader-4.2
+### 3. Save the folder where you desire and then run the start_app.pyw

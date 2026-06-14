@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LawPhil Case Downloader - Auto-Queue & Aggressive Cookie Blocking
+LawPhil Case Downloader - Surgical CSS Cleanup Version
 """
 
 import sys
@@ -50,19 +50,18 @@ class LawPhilDownloader:
             number_only = match.group(1) if match else case_input
             return case_input, number_only
             
+    # ==========================================
+    # CLEANUP PHASE 1: Popups & Cookies
+    # ==========================================
     def destroy_cookie_banners(self):
-        """Aggressively removes cookie popups using Javascript and handles alerts."""
-        # 1. Handle native browser alerts (if any)
         try:
             WebDriverWait(self.driver, 1).until(EC.alert_is_present())
             self.driver.switch_to.alert.accept()
         except:
             pass
 
-        # 2. Inject Javascript to forcefully click OK and hide sticky cookie banners
         try:
             js_nuke_cookies = """
-            // Try clicking anything that looks like an OK/Accept button
             var btns = document.querySelectorAll('button, a, div');
             var keywords = ['ok', 'accept', 'agree', 'got it', 'close'];
             for (var i = 0; i < btns.length; i++) {
@@ -72,7 +71,6 @@ class LawPhilDownloader:
                 }
             }
             
-            // Forcefully hide any fixed/sticky elements at the bottom or top of the screen
             var elements = document.querySelectorAll('*');
             for (var i = 0; i < elements.length; i++) {
                 var style = window.getComputedStyle(elements[i]);
@@ -85,22 +83,104 @@ class LawPhilDownloader:
             }
             """
             self.driver.execute_script(js_nuke_cookies)
-            time.sleep(1) # Wait a second for animations to clear
+            time.sleep(0.5)
         except Exception:
             pass
 
+    # ==========================================
+    # CLEANUP PHASE 2: Surgical CSS Hiding
+    # ==========================================
+    def format_and_clean_document(self):
+        """Uses CSS to selectively turn off bad elements without breaking the DOM structure."""
+        try:
+            js_clean_document = """
+            // 1. Globally remove hardcoded background colors and images from HTML tags
+            document.querySelectorAll('*').forEach(el => {
+                if (el.hasAttribute('background')) el.removeAttribute('background');
+                if (el.hasAttribute('bgcolor')) el.removeAttribute('bgcolor');
+            });
+
+            // 2. Inject a surgical stylesheet to hide everything we don't want
+            const style = document.createElement('style');
+            style.innerHTML = `
+                /* Hide LawPhil's external graphics and top banners */
+                img[src*="back.gif"], img[src*="top.gif"], img[src*="010.gif"],
+                img[src*="008.jpg"], img[src*="009.jpg"], img[src*="lawphil.jpg"],
+                img[src*="home.png"], img[src*="alf.png"] {
+                    display: none !important;
+                }
+
+                /* Hide the navigation menu and search bars at the top */
+                .menuBar, .level0, .level1, form, .gsc-control-searchbox-only {
+                    display: none !important;
+                }
+
+                /* Hide all horizontal lines */
+                hr {
+                    display: none !important;
+                }
+
+                /* Hide specific 'back' and 'top' link actions */
+                a[href*="history.back"], a[href*="#top"] {
+                    display: none !important;
+                }
+
+                /* Hide the specific class LawPhil uses for the Arellano Law footer */
+                a.id, .id {
+                    display: none !important;
+                }
+
+                /* Lock the layout, background, and typography for a clean PDF */
+                html, body { 
+                    background-color: #ffffff !important; 
+                    background-image: none !important;
+                    color: #000000 !important; 
+                    font-family: 'Times New Roman', Times, serif !important; 
+                    font-size: 12pt !important; 
+                    line-height: 1.5 !important; 
+                }
+                
+                table, tr, td, center, div { 
+                    background-color: transparent !important; 
+                    background-image: none !important; 
+                }
+                
+                p, blockquote { 
+                    text-align: justify !important; 
+                }
+                
+                center, p[align="center"] { 
+                    text-align: center !important; 
+                }
+            `;
+            document.head.appendChild(style);
+
+            // 3. Fallback: Find exact text nodes for footer text and hide just the text (not the container)
+            document.querySelectorAll('a, span, p, div, center').forEach(el => {
+                const txt = el.innerText ? el.innerText.toLowerCase().trim() : '';
+                if (txt === 'back' || txt === 'top' || txt === 'back to top' || 
+                    txt.includes('arellano law foundation') || txt.includes('the lawphil project')) {
+                    el.style.display = 'none';
+                }
+            });
+            """
+            self.driver.execute_script(js_clean_document)
+            time.sleep(0.5)
+        except Exception as js_err:
+            print(f"Notice: Phase 2 Cleanup adjustments skipped ({js_err})")
+
+    # ==========================================
+    # MAIN WORKFLOW
+    # ==========================================
     def process_and_download(self, search_input, output_dir=None):
-        """Searches, navigates, cleans the page, and auto-saves the PDF in one go."""
         try:
             self.setup_driver()
             
-            # Phase 1: Format and Search
             search_term, case_number_only = self.format_case_number(search_input)
             search_query = search_term.replace(" ", "+")
             self.driver.get(f"{self.SEARCH_URL}{search_query}")
             time.sleep(2) 
             
-            # Phase 2: Find Link
             case_url = None
             links = self.driver.find_elements(By.CSS_SELECTOR, "a[href]")
             for link in links:
@@ -111,42 +191,14 @@ class LawPhilDownloader:
                         break
             
             if not case_url:
-                return None # Case not found
+                return None
                 
-            # Phase 3: Navigate and Clean Page
             self.driver.get(case_url)
             time.sleep(2) 
+            
             self.destroy_cookie_banners()
+            self.format_and_clean_document()
             
-            # === NEW ADDITION: HIDE LAWPHIL HEADER BANNER WITHOUT BREAKING HTML ===
-            try:
-                js_clean_headers = """
-                // 1. Hide independent navigation elements, sidebars, and search frames
-                const navigationSelectors = ['.level0', '.level1', '.top', '#NuMainContainer', 'form', '.gstl_50', '#gs_id50'];
-                navigationSelectors.forEach(selector => {
-                    document.querySelectorAll(selector).forEach(el => el.style.display = 'none');
-                });
-
-                // 2. Hide top visual header rows inside the layout table, keeping structural elements safe
-                const blockquote = document.querySelector('blockquote');
-                if (blockquote) {
-                    const mainContentRow = blockquote.closest('tr');
-                    if (mainContentRow) {
-                        let priorRow = mainContentRow.previousElementSibling;
-                        while (priorRow) {
-                            priorRow.style.display = 'none';
-                            priorRow = priorRow.previousElementSibling;
-                        }
-                    }
-                }
-                """
-                self.driver.execute_script(js_clean_headers)
-                time.sleep(0.5) # Brief pause to allow DOM elements to hide smoothly
-            except Exception as js_err:
-                print(f"Notice: Optional page cleanup layout skipped ({js_err})")
-            # ======================================================================
-            
-            # Phase 4: Save PDF
             output_filename = f"G.R. No. {case_number_only}.pdf"
             
             if output_dir and os.path.isdir(output_dir):

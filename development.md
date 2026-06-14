@@ -4,8 +4,7 @@
 ```
 
 ## next steps:
-- Change workflow from html to pdf converter instead
-  - allowing to remove the lawphil heading
-  - customised headings?
+- Add a retry button when case download fails
+- Make the whole text black?
  
 - Attempt to use chromium browsers and safari. 
